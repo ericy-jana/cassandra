@@ -36,46 +36,71 @@ class { 'cassandra::optutils':
   require        => Class['cassandra'],
 }
 
-$keyspaces = {
-  'Excelsior' => {
-    ensure          => present,
-    replication_map => {
-      keyspace_class     => 'SimpleStrategy',
-      replication_factor => 3,
-    },
-    durable_writes  => false,
-  },
-  'Excalibur' => {
-    ensure          => present,
-    replication_map => {
-      keyspace_class => 'NetworkTopologyStrategy',
-      dc1            => 3,
-      dc2            => 2,
-    },
-    durable_writes  => true,
-  },
-}
-
-$cql_types = {
-  'fullname' => {
-    'keyspace' => 'Excalibur',
-    'fields'   => {
-      'firstname' => 'text',
-      'lastname'  => 'text',
-    },
-  },
-  'address'  => {
-    'keyspace' => 'Excalibur',
-    'fields'   => {
-      'street'   => 'text',
-      'city'     => 'text',
-      'zip_code' => 'int',
-      'phones'   => 'set<text>',
-    },
-  },
-}
-
 class { 'cassandra::schema':
-  keyspaces => $keyspaces,
-  cql_types => $cql_types,
+  cql_types => {
+    'fullname' => {
+      'keyspace' => 'Excalibur',
+      'fields'   => {
+        'firstname' => 'text',
+        'lastname'  => 'text',
+      }
+    },
+    'address'  => {
+      'keyspace' => 'Excalibur',
+      'fields'   => {
+        'street'   => 'text',
+        'city'     => 'text',
+        'zip_code' => 'int',
+        'phones'   => 'set<text>',
+      }
+    },
+  },
+  keyspaces => {
+    'Excelsior' => {
+      replication_map => {
+        keyspace_class     => 'SimpleStrategy',
+        replication_factor => 3,
+      },
+      durable_writes  => false,
+    },
+    'Excalibur' => {
+      replication_map => {
+        keyspace_class => 'NetworkTopologyStrategy',
+        dc1            => 3,
+        dc2            => 2,
+      },
+      durable_writes  => true,
+    },
+    'mykeyspace' => {
+      replication_map => {
+        keyspace_class => 'SimpleStrategy',
+        replication_factor => 1,
+      },
+    },
+  },
+  tables    => {
+    'users' => {
+      'keyspace_name' => 'mykeyspace',
+      'columns'       => {
+        'userid'      => 'int',
+        'fname'       => 'text',
+        'lname'       => 'text',
+        'PRIMARY KEY' => '(userid)',
+      },
+    },
+    'users' => {
+      'keyspace_name' => 'Excalibur',
+      'columns'       => {
+        'userid'          => 'text',
+        'username'        => 'FROZEN<fullname>',
+        'emails'          => 'set<text>',
+        'top_scores'      => 'list<int>',
+        'todo'            => 'map<timestamp, text>',
+        'PRIMARY KEY'     => '(userid)',
+      },
+      'options'       => [
+        "ID='5a1c395e-b41f-11e5-9f22-ba0be0483c18'"
+      ],
+    },
+  },
 }
