@@ -15,7 +15,6 @@
 3. [Usage - Configuration options and additional functionality](#usage)
     * [Create a Cluster in a Single Data Center](#create-a-cluster-in-a-single-data-center)
     * [Create a Cluster in Multiple Data Centers](#create-a-cluster-in-multiple-data-centers)
-    * [Schema Maintenance](#schema-maintenance)
     * [OpsCenter](#opscenter)
     * [DataStax Enterprise](#datastax-enterprise)
 4. [Reference - An under-the-hood peek at what the module is doing and how](#reference)
@@ -121,15 +120,48 @@ A Puppet module to install and manage Cassandra, DataStax Agent & OpsCenter
 
 ### Beginning with Cassandra
 
-A basic example is as follows:
+This code will install Cassandra onto a system and create a basic
+keyspace, table and index.  The node itself becomes a seed for the cluster.
 
 ```puppet
-  class { 'cassandra':
-    cluster_name    => 'MyCassandraCluster',
-    endpoint_snitch => 'GossipingPropertyFileSnitch',
-    listen_address  => "${::ipaddress}",
-    seeds           => '110.82.155.0,110.82.156.3'
-  }
+# Cassandra pre-requisites.  You may want to install your own Java
+# environment.
+include cassandra::datastax_repo
+include cassandra::java
+
+# Iinstall
+class { 'cassandra':
+  cluster_name    => 'MyCassandraCluster',
+  endpoint_snitch => 'GossipingPropertyFileSnitch',
+  listen_address  => $::ipaddress,
+  seeds           => $::ipaddress,
+  service_systemd => true,
+  require         => Class['cassandra::datastax_repo', 'cassandra::java'],
+}
+
+cassandra::schema::keyspace { 'mykeyspace':
+  replication_map => {
+    keyspace_class     => 'SimpleStrategy',
+    replication_factor => 1,
+  },
+  durable_writes  => false,
+}
+
+cassandra::schema::table { 'users':
+  columns  => {
+    user_id       => 'int',
+    fname         => 'text',
+    lname         => 'text',
+    'PRIMARY KEY' => '(user_id)',
+  },
+  keyspace => 'mykeyspace',
+}
+
+cassandra::schema::index { 'users_lname_idx':
+  table    => 'users',
+  keys     => 'lname',
+  keyspace => 'mykeyspace',
+}
 ```
 
 ### Upgrading
@@ -319,81 +351,6 @@ node /^node[345]$/ {
 We don't need to specify the rack name (with the rack attribute) as RAC1 is
 the default value.  Again, do not forget to either set auto_bootstrap to
 true or not set the attribute at all after initializing the cluster.
-
-### Schema Maintenance
-
-Using the `cassandra::schema` class, we can make calls to the
-`cassandra::schema::keyspace` resource to create keyspaces and custom
-data types.
-
-```puppet
-class { 'cassandra::schema':
-  cql_types => {
-    'fullname' => {
-      'keyspace' => 'Excalibur',
-      'fields'   => {
-        'firstname' => 'text',
-        'lastname'  => 'text',
-      }
-    },
-    'address'  => {
-      'keyspace' => 'Excalibur',
-      'fields'   => {
-        'street'   => 'text',
-        'city'     => 'text',
-        'zip_code' => 'int',
-        'phones'   => 'set<text>',
-      }
-    },
-  },
-  indexes   => {
-    'users_emails_idx' => {
-      keyspace => 'Excalibur',
-      table    => 'users',
-      keys     => 'username',
-    },
-  },
-  keyspaces => {
-    'Excelsior' => {
-      replication_map => {
-        keyspace_class     => 'SimpleStrategy',
-        replication_factor => 3,
-      },
-      durable_writes  => false,
-    },
-    'Excalibur' => {
-      replication_map => {
-        keyspace_class => 'NetworkTopologyStrategy',
-        dc1            => 3,
-        dc2            => 2,
-      },
-      durable_writes  => true,
-    },
-  },
-  tables    => {
-    'users' => {
-      'keyspace'      => 'Excalibur',
-      'columns'       => {
-        'userid'          => 'text',
-        'username'        => 'FROZEN<fullname>',
-        'emails'          => 'set<text>',
-        'top_scores'      => 'list<int>',
-        'todo'            => 'map<timestamp, text>',
-        'PRIMARY KEY'     => '(userid)',
-      },
-      'options'       => [
-        "ID='5a1c395e-b41f-11e5-9f22-ba0be0483c18'"
-      ],
-    },
-  },
-}
-```
-
-In this case, the Excelsior keyspace is using the SimpleStrategy and has
-a replication factor of 3.  The Excalibur keyspace is using the
-recommended NetworkTopologyStrategy and is split over two data centers
-with a replication factor of 3 in DC1 and a replication factor of 2
-in DC2.
 
 ### OpsCenter
 
