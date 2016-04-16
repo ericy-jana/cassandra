@@ -175,6 +175,13 @@ this Puppet module.
 
 ### Upgrading
 
+#### Changes in 1.19.0
+
+The hints_directory documentation will cause a change in the cassandra.yaml
+file regardless of the value you set it to.  If you do not wish this to
+result in a refesh of the Cassandra service, please set service_refresh to
+false.
+
 #### Changes in 1.9.2
 
 Now that Cassandra 3 is available from the DataStax repositories, there is
@@ -791,6 +798,12 @@ segment and remove it.  So a small total commitlog space will tend
 to cause more flush activity on less-active columnfamilies.
 Default value: *undef*
 
+##### `compaction_large_partition_warning_threshold_mb`
+If left as the default, then this will not be placed into the configuration
+file where it will have the functional effect of a value of 100.  Logs a
+warning when compaction partitions larger than the set value.
+Default value: *undef*
+
 ##### `compaction_throughput_mb_per_sec`
 Throttles compaction to the given total throughput across the entire
 system. The faster you insert data, the faster you need to compact in
@@ -1029,6 +1042,14 @@ rate; if there are three, each will throttle to half of the maximum,
 since we expect two nodes to be delivering hints simultaneously.)
 Default value: '1024'
 
+##### `hints_directory`
+The Cassandra hints directory. A new feature in Cassandra 3.x+ stores
+hints in this directory. Leaving it unset will cause cassandra to use
+whatever the environmental value of $CASSANDRA_HOME/data/hints is set to.
+If you see cassandra is trying to write to /hints in the cassandra.log, 
+you should set this to a sane value.
+Default value: *undef*
+
 ##### `index_summary_capacity_in_mb`
 A fixed memory pool size in MB for for SSTable index summaries. If left
 empty, this will default to 5% of the heap size. If the memory usage of
@@ -1181,6 +1202,14 @@ modify cassandra-env.sh as directed in the file.
 
 If left as the default, NativeAllocator is assumed.
 Default value: *undef*
+
+##### `memtable_allocation_type`
+Specify the way Cassandra allocates and manages memtable memory.  Options are:
+* heap_buffers:    on heap nio buffers
+* offheap_buffers: off heap (direct) nio buffers
+* offheap_objects: native memory, eliminating nio buffer heap overhead
+
+Default value: heap_buffers
 
 ##### `memtable_cleanup_threshold`
 Ratio of occupied non-flushing memtable size to total permitted size
@@ -3479,20 +3508,22 @@ page for project specific requirements.
 
 **Release**  | **PR/Issue**                                        | **Contributer**
 -------------|-----------------------------------------------------|----------------------------------------------------
-0.3.0        | [#11](https://github.com/locp/cassandra/pull/11)    | [@spredzy](https://github.com/Spredzy)
-0.4.2        | [#34](https://github.com/locp/cassandra/pull/34)    | [@amosshapira](https://github.com/amosshapira)
-1.3.3        | [#87](https://github.com/locp/cassandra/pull/87)    | [@DylanGriffith](https://github.com/DylanGriffith)
-1.3.5        | [#93](https://github.com/locp/cassandra/issues/93)  | [@sampowers](https://github.com/sampowers)
-1.4.0        | [#100](https://github.com/locp/cassandra/pull/100)  | [@markasammut](https://github.com/markasammut)
-1.4.2        | [#110](https://github.com/locp/cassandra/pull/110)  | [@markasammut](https://github.com/markasammut)
+1.20.0       | [#217](https://github.com/locp/cassandra/pull/217)  | [@samyray](https://github.com/samyray)
+1.19.0       | [#215](https://github.com/locp/cassandra/pull/215)  | [@tibers](https://github.com/tibers)
+1.18.0       | [#203](https://github.com/locp/cassandra/pull/203)  | [@Mike-Petersen](https://github.com/Mike-Petersen)
+1.15.0       | [#189](https://github.com/locp/cassandra/pull/189)  | [@tibers](https://github.com/tibers)
+1.14.0       | [#171](https://github.com/locp/cassandra/pull/171)  | [@jonen10](https://github.com/jonen10)
+1.13.0       | [#166](https://github.com/locp/cassandra/pull/166)  | [@Mike-Petersen](https://github.com/Mike-Petersen)
+1.13.0       | [#163](https://github.com/locp/cassandra/pull/163)  | [@VeriskPuppet](https://github.com/VeriskPuppet)
+1.12.2       | [#165](https://github.com/locp/cassandra/pull/165)  | [@palmertime](https://github.com/palmertime)
+1.12.0       | [#156](https://github.com/locp/cassandra/pull/156)  | [@stuartbfox](https://github.com/stuartbfox)
+1.12.0       | [#153](https://github.com/locp/cassandra/pull/153)  | [@Mike-Petersen](https://github.com/Mike-Petersen)
+1.10.0       | [#144](https://github.com/locp/cassandra/pull/144)  | [@Mike-Petersen](https://github.com/Mike-Petersen)
 1.9.2        | [#136](https://github.com/locp/cassandra/issues/136)| [@mantunovic](https://github.com/mantunovic)
 1.9.2        | [#136](https://github.com/locp/cassandra/issues/136)| [@al4](https://github.com/al4)
-1.10.0       | [#144](https://github.com/locp/cassandra/pull/144)  | [@Mike-Petersen](https://github.com/Mike-Petersen)
-1.12.0       | [#153](https://github.com/locp/cassandra/pull/153)  | [@Mike-Petersen](https://github.com/Mike-Petersen)
-1.12.0       | [#156](https://github.com/locp/cassandra/pull/156)  | [@stuartbfox](https://github.com/stuartbfox)
-1.12.2       | [#165](https://github.com/locp/cassandra/pull/165)  | [@palmertime](https://github.com/palmertime)
-1.13.0       | [#163](https://github.com/locp/cassandra/pull/163)  | [@VeriskPuppet](https://github.com/VeriskPuppet)
-1.13.0       | [#166](https://github.com/locp/cassandra/pull/166)  | [@Mike-Petersen](https://github.com/Mike-Petersen)
-1.14.0       | [#171](https://github.com/locp/cassandra/pull/171)  | [@jonen10](https://github.com/jonen10)
-1.15.0       | [#189](https://github.com/locp/cassandra/pull/189)  | [@tibers](https://github.com/tibers)
-1.18.0       | [#203](https://github.com/locp/cassandra/pull/203)  | [@Mike-Petersen](https://github.com/Mike-Petersen)
+1.4.2        | [#110](https://github.com/locp/cassandra/pull/110)  | [@markasammut](https://github.com/markasammut)
+1.4.0        | [#100](https://github.com/locp/cassandra/pull/100)  | [@markasammut](https://github.com/markasammut)
+1.3.5        | [#93](https://github.com/locp/cassandra/issues/93)  | [@sampowers](https://github.com/sampowers)
+1.3.3        | [#87](https://github.com/locp/cassandra/pull/87)    | [@DylanGriffith](https://github.com/DylanGriffith)
+0.4.2        | [#34](https://github.com/locp/cassandra/pull/34)    | [@amosshapira](https://github.com/amosshapira)
+0.3.0        | [#11](https://github.com/locp/cassandra/pull/11)    | [@spredzy](https://github.com/Spredzy)
