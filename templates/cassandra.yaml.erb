@@ -49,6 +49,9 @@ hinted_handoff_throttle_in_kb: <%= @hinted_handoff_throttle_in_kb %>
 # Consider increasing this number when you have multi-dc deployments, since
 # cross-dc handoff tends to be slower
 max_hints_delivery_threads: <%= @max_hints_delivery_threads %>
+# Cassandra hints directory. 
+# (Default: $CASSANDRA_HOME/data/hints) Set directory where hints are stored.
+<% if @hints_directory != nil %>hints_directory: <%= @hints_directory %><% else %># hints_directory:<% end %>
 
 # Maximum throttle in KBs per second, total. This will be
 # reduced proportionally to the number of nodes in the cluster.
@@ -306,7 +309,7 @@ concurrent_counter_writes: <%= @concurrent_counter_writes %>
 #   heap_buffers:    on heap nio buffers
 #   offheap_buffers: off heap (direct) nio buffers
 #   offheap_objects: native memory, eliminating nio buffer heap overhead
-memtable_allocation_type: heap_buffers
+memtable_allocation_type: <%= @memtable_allocation_type %>
 
 # Total space to use for commitlogs.  Since commitlog segments are
 # mmapped, and hence use up address space, the default size is 32
@@ -813,4 +816,7 @@ inter_dc_tcp_nodelay: <%= @inter_dc_tcp_nodelay %>
 <% @additional_lines.each do |additional_line| -%>
 <%= additional_line %>
 <% end -%>
+<% end -%>
+<% if @compaction_large_partition_warning_threshold_mb != nil -%>
+compaction_large_partition_warning_threshold_mb: <%= @compaction_large_partition_warning_threshold_mb -%>
 <% end -%>

@@ -18,6 +18,7 @@ group :system_tests do
   gem 'docker-api',             require: false
   gem 'fog',                    require: false
   gem 'fog-google',             '<= 0.0.9'
+  gem 'google-api-client',      '<= 0.9.4'
   gem 'hiera',                  require: false
   gem 'metadata-json-lint',     require: false
   gem 'pry',                    require: false
@@ -30,6 +31,7 @@ group :system_tests do
   gem 'rspec-puppet-utils',     require: false
   gem 'rubocop',                require: false
   gem 'serverspec',             require: false
+  gem 'spdx-licenses',          '<= 1.0.0'
   gem 'travis',                 require: false
   gem 'travis-lint',            require: false
 end

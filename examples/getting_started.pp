@@ -15,6 +15,7 @@ include cassandra::java
 # GossipingPropertyFileSnitch.  In this very basic example
 # the node itself becomes a seed for the cluster.
 class { 'cassandra':
+  authenticator   => 'PasswordAuthenticator',
   cluster_name    => 'MyCassandraCluster',
   endpoint_snitch => 'GossipingPropertyFileSnitch',
   listen_address  => $::ipaddress,
@@ -23,26 +24,64 @@ class { 'cassandra':
   require         => Class['cassandra::datastax_repo', 'cassandra::java'],
 }
 
-cassandra::schema::keyspace { 'mykeyspace':
-  replication_map => {
-    keyspace_class     => 'SimpleStrategy',
-    replication_factor => 1,
+class { 'cassandra::schema':
+  cqlsh_password => 'cassandra',
+  cqlsh_user     => 'cassandra',
+  indexes        => {
+    'users_lname_idx' => {
+      table    => 'users',
+      keys     => 'lname',
+      keyspace => 'mykeyspace',
+    },
   },
-  durable_writes  => false,
+  keyspaces      => {
+    'mykeyspace' => {
+      durable_writes  => false,
+      replication_map => {
+        keyspace_class     => 'SimpleStrategy',
+        replication_factor => 1,
+      },
+    }
+  },
+  tables         => {
+    'users' => {
+      columns  => {
+        user_id       => 'int',
+        fname         => 'text',
+        lname         => 'text',
+        'PRIMARY KEY' => '(user_id)',
+      },
+      keyspace => 'mykeyspace',
+    },
+  },
+  users          => {
+    'spillman' => {
+      password => 'Niner27',
+    },
+    'akers'    => {
+      password  => 'Niner2',
+      superuser => true,
+    },
+    'boone'    => {
+      password => 'Niner75',
+    },
+    'lucan'    => {
+      ensure => absent
+    },
+  },
 }
 
-cassandra::schema::table { 'users':
-  columns  => {
-    user_id       => 'int',
-    fname         => 'text',
-    lname         => 'text',
-    'PRIMARY KEY' => '(user_id)',
-  },
-  keyspace => 'mykeyspace',
-}
+$heap_new_size = $::processorcount * 100
 
-cassandra::schema::index { 'users_lname_idx':
-  table    => 'users',
-  keys     => 'lname',
-  keyspace => 'mykeyspace',
+class { 'cassandra::env':
+  file_lines => {
+    'MAX_HEAP_SIZE' => {
+      line              => 'MAX_HEAP_SIZE="1024M"',
+      match             => '#MAX_HEAP_SIZE="4G"',
+    },
+    'HEAP_NEWSIZE' => {
+      line              => "HEAP_NEWSIZE='${heap_new_size}M'",
+      match             => '#HEAP_NEWSIZE="800M"',
+    }
+  }
 }

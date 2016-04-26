@@ -1,5 +1,93 @@
 # Change Log for Puppet Module locp-cassandra
 
+##2016-04-25 - Release 1.22.0 ([diff](https://github.com/locp/cassandra/compare/1.21.0...1.22.0))
+
+### Summary
+
+Two new features.
+
+### Features
+
+* Allow the creation and dropping of users with the following:
+  * A new defined type cassandra::schema::user
+  * The new attribute cassandra::schema::users
+* Allow the manipulation of the environment file with the new class
+  cassandra::env.
+
+### Bugfixes
+
+* N/A
+
+### Improvements
+
+* N/A
+
+##2016-04-20 - Release 1.21.0 ([diff](https://github.com/locp/cassandra/compare/1.20.0...1.21.0))
+
+### Summary
+
+Some minor bug fixes.  Also some features and improvements that allow
+acceptance tests to be run against Cassandra 3.
+
+### Features
+
+* Added the following attributes to cassandra::java:
+
+  * aptkey
+  * aptsource
+  * yumrepo
+
+### Bugfixes
+
+* Corrected some errors in the README and CHANGELOG.
+* Fixed problems with TravisCI builds.
+* Fixed problems with CircleCI builds.
+
+### Improvements
+
+* Acceptance testing of Cassandra 3.
+
+##2016-04-13 - Release 1.20.0 ([diff](https://github.com/locp/cassandra/compare/1.19.0...1.20.0))
+
+### Summary
+
+A minor release for client requirements.
+
+### Features
+
+* Added the compaction_large_partition_warning_threshold_mb and
+  memtable_allocation_type attributes to the cassandra class.
+
+### Bugfixes
+
+* N/A
+
+### Improvements
+
+* N/A
+
+##2016-04-06 - Release 1.19.0 ([diff](https://github.com/locp/cassandra/compare/1.18.1...1.19.0))
+
+### Summary
+
+A new template attribute and a couple of bug fixes.
+
+### Features
+
+* The hints_directory attribute has been added to the cassandra class for
+  placing into the template.
+
+### Bugfixes
+
+* Some documentation errors that had been identified have been resolved.
+* A problem with OpsCenter and systemd has been resolved.  So far only CentOS 7
+  from the supported operating systems has been identified as being required
+  to use systemd.
+
+### Improvements
+
+* N/A
+
 ##2016-03-27 - Release 1.18.1 ([diff](https://github.com/locp/cassandra/compare/1.18.0...1.18.1))
 
 ### Summary
@@ -174,7 +262,7 @@ A small bugfix release.
 
 * N/A
 
-##20016-02-27 - Release 1.14.1 ([diff](https://github.com/locp/cassandra/compare/1.14.0...1.14.1))
+##2016-02-27 - Release 1.14.1 ([diff](https://github.com/locp/cassandra/compare/1.14.0...1.14.1))
 
 ### Summary
 

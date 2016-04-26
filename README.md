@@ -21,6 +21,7 @@
     * [cassandra](#class-cassandra)
     * [cassandra::datastax_agent](#class-cassandradatastax_agent)
     * [cassandra::datastax_repo](#class-cassandradatastax_repo)
+    * [cassandra::env](#class-cassandraenv)
     * [cassandra::firewall_ports](#class-cassandrafirewall_ports)
     * [cassandra::java](#class-cassandrajava)
     * [cassandra::opscenter](#class-cassandraopscenter)
@@ -32,6 +33,7 @@
     * [cassandra::schema::index](#defined-type-cassandraschemaindex)
     * [cassandra::schema::keyspace](#defined-type-cassandraschemakeyspace)
     * [cassandra::schema::table](#defined-type-cassandraschematable)
+    * [cassandra::schema::user](#defined-type-cassandraschemauser)
 5. [Limitations - OS compatibility, etc.](#limitations)
 6. [Contributers](#contributers)
 
@@ -132,6 +134,7 @@ include cassandra::java
 # Install Cassandra on the node.  In this example, the node itself becomes
 # a seed for the cluster.
 class { 'cassandra':
+  authenticator   => 'PasswordAuthenticator',
   cluster_name    => 'MyCassandraCluster',
   endpoint_snitch => 'GossipingPropertyFileSnitch',
   listen_address  => $::ipaddress,
@@ -140,40 +143,59 @@ class { 'cassandra':
   require         => Class['cassandra::datastax_repo', 'cassandra::java'],
 }
 
-# Create a keyspace.
-cassandra::schema::keyspace { 'mykeyspace':
-  replication_map => {
-    keyspace_class     => 'SimpleStrategy',
-    replication_factor => 1,
+class { 'cassandra::schema':
+  cqlsh_password => 'cassandra',
+  cqlsh_user     => 'cassandra',
+  indexes        => {
+    'users_lname_idx' => {
+      table    => 'users',
+      keys     => 'lname',
+      keyspace => 'mykeyspace',
+    },
   },
-  durable_writes  => false,
-}
-
-# Create a table within the keyspace.
-cassandra::schema::table { 'users':
-  columns  => {
-    user_id       => 'int',
-    fname         => 'text',
-    lname         => 'text',
-    'PRIMARY KEY' => '(user_id)',
+  keyspaces      => {
+    'mykeyspace' => {
+      durable_writes  => false,
+      replication_map => {
+        keyspace_class     => 'SimpleStrategy',
+        replication_factor => 1,
+      },
+    }
   },
-  keyspace => 'mykeyspace',
-}
-
-# Add an index to the table.
-cassandra::schema::index { 'users_lname_idx':
-  table    => 'users',
-  keys     => 'lname',
-  keyspace => 'mykeyspace',
+  tables         => {
+    'users' => {
+      columns  => {
+        user_id       => 'int',
+        fname         => 'text',
+        lname         => 'text',
+        'PRIMARY KEY' => '(user_id)',
+      },
+      keyspace => 'mykeyspace',
+    },
+  },
+  users          => {
+    'spillman' => {
+      password => 'Niner27',
+    },
+    'akers'    => {
+      password  => 'Niner2',
+      superuser => true,
+    },
+    'boone'    => {
+      password => 'Niner75',
+    },
+  },
 }
 ```
 
-This is how one would implement the example for getting started with Cassandra
-shown in
-http://wiki.apache.org/cassandra/GettingStarted (viewed 27-Mar-2016) using
-this Puppet module.
-
 ### Upgrading
+
+#### Changes in 1.19.0
+
+The hints_directory documentation will cause a change in the cassandra.yaml
+file regardless of the value you set it to.  If you do not wish this to
+result in a refesh of the Cassandra service, please set service_refresh to
+false.
 
 #### Changes in 1.9.2
 
@@ -441,6 +463,7 @@ cassandra::opscenter::cluster_name { 'Cluster1':
 * [cassandra](#class-cassandra)
 * [cassandra::datastax_agent](#class-cassandradatastax_agent)
 * [cassandra::datastax_repo](#class-cassandradatastax_repo)
+* [cassandra::env](#class-cassandraenv)
 * [cassandra::firewall_ports](#class-cassandrafirewall_ports)
 * [cassandra::java](#class-cassandrajava)
 * [cassandra::opscenter](#class-cassandraopscenter)
@@ -791,6 +814,12 @@ segment and remove it.  So a small total commitlog space will tend
 to cause more flush activity on less-active columnfamilies.
 Default value: *undef*
 
+##### `compaction_large_partition_warning_threshold_mb`
+If left as the default, then this will not be placed into the configuration
+file where it will have the functional effect of a value of 100.  Logs a
+warning when compaction partitions larger than the set value.
+Default value: *undef*
+
 ##### `compaction_throughput_mb_per_sec`
 Throttles compaction to the given total throughput across the entire
 system. The faster you insert data, the faster you need to compact in
@@ -1029,6 +1058,14 @@ rate; if there are three, each will throttle to half of the maximum,
 since we expect two nodes to be delivering hints simultaneously.)
 Default value: '1024'
 
+##### `hints_directory`
+The Cassandra hints directory. A new feature in Cassandra 3.x+ stores
+hints in this directory. Leaving it unset will cause cassandra to use
+whatever the environmental value of $CASSANDRA_HOME/data/hints is set to.
+If you see cassandra is trying to write to /hints in the cassandra.log, 
+you should set this to a sane value.
+Default value: *undef*
+
 ##### `index_summary_capacity_in_mb`
 A fixed memory pool size in MB for for SSTable index summaries. If left
 empty, this will default to 5% of the heap size. If the memory usage of
@@ -1181,6 +1218,14 @@ modify cassandra-env.sh as directed in the file.
 
 If left as the default, NativeAllocator is assumed.
 Default value: *undef*
+
+##### `memtable_allocation_type`
+Specify the way Cassandra allocates and manages memtable memory.  Options are:
+* heap_buffers:    on heap nio buffers
+* offheap_buffers: off heap (direct) nio buffers
+* offheap_objects: native memory, eliminating nio buffer heap overhead
+
+Default value: heap_buffers
 
 ##### `memtable_cleanup_threshold`
 Ratio of occupied non-flushing memtable size to total permitted size
@@ -1390,7 +1435,7 @@ NOTE: if you reduce the size, you may not get you hottest keys loaded on startup
 Default value: '0' (disable row caching)
 
 ##### `rpc_address`
-The address  bind the Thrift RPC service and native transport server to.
+The address to bind the Thrift RPC service and native transport server to.
 
 Set rpc_address OR rpc_interface, not both. Interfaces must correspond
 to a single address, IP aliasing is not supported.
@@ -1953,6 +1998,29 @@ On the Debian family, this is passed as the `release` attribute to an
 `apt::source` resource.  On the Red Hat family, it is ignored.
 Default value 'stable'
 
+### Class: cassandra::env
+
+A class for altering the environment file for Cassandra.
+
+#### Attributes
+
+##### `environment_file`
+The full path name of the environment file.  On the RedHat family this will
+default to `/etc/cassandra/default.conf/cassandra-env.sh` on Debian, the
+default is `/etc/cassandra/cassandra-env.sh`.
+
+##### `file_lines`
+If set, then the [create_resources](https://docs.puppet.com/puppet/latest/reference/function.html#createresources)
+will be used to create an array of
+[file_line](https://forge.puppet.com/puppetlabs/stdlib#file_line) resources
+where the path attribute is set to `$cassandra::env::environment_file`
+Default *undef*
+
+##### `service_refresh`
+If the Cassandra service is to be notified if the environment file is changed.
+Set to false if this is not wanted.
+Default value true.
+
 ### Class: cassandra::firewall_ports
 
 An optional class to configure incoming network ports on the host that are
@@ -2036,6 +2104,16 @@ A class to install an appropriate Java package.
 
 #### Attributes
 
+##### `aptkey`
+If supplied, this should be a hash of *apt::key* resources that will be passed
+to the create_resources function.  This is ignored on non-Debian systems.
+Default value *undef*
+
+##### `aptsource`
+If supplied, this should be a hash of *apt::source* resources that will be
+passed to the create_resources function.  This is ignored on non-Red Hat
+systems.  Default value *undef*
+
 ##### `ensure`
 Is deprecated (see https://github.com/locp/cassandra/wiki/DEP-016).  Use
 `package_ensure` instead.
@@ -2059,6 +2137,11 @@ Default value 'present'
 The name of the Java package to be installed.
 Default value java-1.8.0-openjdk-headless on Red Hat openjdk-7-jre-headless
 on Debian.
+
+##### `yumrepo`
+If supplied, this should be a hash of *yumrepo* resources that will be passed
+to the create_resources function.  This is ignored on non-Red Hat systems.
+Default value *undef*
 
 ### Class: cassandra::opscenter
 
@@ -2431,12 +2514,6 @@ http://docs.datastax.com/en/opscenter/5.2/opsc/configure/opscConfigProps_r.html
 for more details.  A value of *undef* will ensure the setting is not present
 in the file.  Default value *undef*
 
-##### `orbited_longpoll`
-This sets the orbited_longpoll setting in the labs section of the OpsCenter 
-configuration file. See labs http://docs.datastax.com/en/opscenter/5.2/opsc/troubleshooting/opscTroubleshootingZeroNodes.html
-for more details.  A value of *undef* will ensure the setting is not present in 
-the file. Default value *undef*
-
 ##### `ldap_admin_group_name`
 This sets the admin_group_name setting in the ldap section of the
 OpsCenter configuration file.  See
@@ -2641,6 +2718,12 @@ OpsCenter configuration file.  See
 http://docs.datastax.com/en/opscenter/5.2/opsc/configure/opscConfigProps_r.html
 for more details.  A value of *undef* will ensure the setting is not present
 in the file.  Default value *undef*
+
+##### `orbited_longpoll`
+This sets the orbited_longpoll setting in the labs section of the OpsCenter 
+configuration file. See labs http://docs.datastax.com/en/opscenter/5.2/opsc/troubleshooting/opscTroubleshootingZeroNodes.html
+for more details.  A value of *undef* will ensure the setting is not present in 
+the file. Default value *undef*
 
 ##### `package_ensure`
 This is passed to the package reference for **opscenter**.  Valid values are
@@ -3285,8 +3368,7 @@ present in the file.  Default value *undef*
 ### Defined Type cassandra::schema::cql_type
 
 Create or drop user defined data types within the schema.  Please see the
-example code in the [Schema Maintenance](#schema-maintenance) and the
-[Limitations - OS compatibility, etc.](#limitations) sections of this document.
+[Begining with Cassandra](#beginning-with-cassandra) section of this document.
 
 #### Attributes
 
@@ -3304,8 +3386,7 @@ the example earlier in this document for the layout of the hash.
 ### Defined Type cassandra::schema::index
 
 Create or drop indexes within the schema.  Please see the
-example code in the [Schema Maintenance](#schema-maintenance) and the
-[Limitations - OS compatibility, etc.](#limitations) sections of this document.
+[Begining with Cassandra](#beginning-with-cassandra) section of this document.
 
 #### Attributes
 
@@ -3314,6 +3395,12 @@ The name of the class to be associated with a class when creating
 a custom class.
 
 Default value *undef*
+
+##### `keyspace`
+The name of the keyspace that the index is to be associated with.
+
+##### `table`
+The name of the table that the index is to be associated with.
 
 ##### `index`
 The name of the index.  Defaults to the name of the resource.  Set to
@@ -3324,22 +3411,15 @@ The columns that the index is being created on.
 
 Default value *undef*
 
-##### `keyspace`
-The name of the keyspace that the index is to be associated with.
-
 ##### `options`
 Any options to be added to the index.
 
 Default value *undef*
 
-##### `table`
-The name of the table that the index is to be associated with.
-
 ### Defined Type cassandra::schema::keyspace
 
 Create or drop keyspaces within the schema.  Please see the example code in the
-[Schema Maintenance](#schema-maintenance) and the
-[Limitations - OS compatibility, etc.](#limitations) sections of this document.
+[Begining with Cassandra](#beginning-with-cassandra) section of this document.
 
 #### Attributes
 
@@ -3359,11 +3439,18 @@ $network_topology_strategy = {
 Valid values can be **present** to ensure a keyspace is created, or
 **absent** to ensure it is dropped.
 
+##### `durable_writes`
+When set to false, data written to the keyspace bypasses the commit log. Be
+careful using this option because you risk losing data. Set this attribute to
+false on a keyspace using the SimpleStrategy. Default value true.
+
+##### `keyspace_name`
+The name of the keyspace to be created. Defaults to the name of the resource.
+
 ### Defined Type cassandra::schema::table
 
 Create or drop tables within the schema.  Please see the example code in the
-[Schema Maintenance](#schema-maintenance) and the
-[Limitations - OS compatibility, etc.](#limitations) sections of this document.
+[Begining with Cassandra](#beginning-with-cassandra) section of this document.
 
 #### Attributes
 
@@ -3391,6 +3478,28 @@ Default value []
 
 ##### `table`
 The name of the table.  Defaults to the name of the resource.
+
+### Defined Type cassandra::schema::user
+
+Create or drop users.  Please see the example code in the
+[Begining with Cassandra](#beginning-with-cassandra) section of this document.
+To use this class, a suitable `authenticator` (e.g. PasswordAuthenticator)
+must be set in the Cassandra class.
+
+#### Attributes
+
+##### `ensure`
+Valid values can be **present** to ensure a user is created, or **absent** to
+remove the user if it exists.  Default value true.
+
+##### `password`
+A password for the user.  Default value *undef*.
+
+##### `superuser`
+If the user is to be a super-user on the system.  Default value false.
+
+##### `user_name`
+The name of the user.  Defaults to the name of the resource.
 
 ### Defined Type cassandra::private::data_directory
 
@@ -3455,10 +3564,10 @@ From release 1.6.0 of this module, regular updates of the Cassandra 1.X
 template will cease and testing against this template will cease.  Testing
 against the template for versions of Cassandra >= 2.X will continue.
 
-When creating key spaces, the settings will only be used to create a new
-key space if it does not currently exist.  If a change is made to the
-Puppet manifest but the key space already exits, this change will not
-be reflected.
+When creating key spaces, indexes, cql_types and users the settings will only
+be used to create a new resource if it does not currently exist.  If a change
+is made to the Puppet manifest but the resource already exits, this change
+will not be reflected.
 
 ## Contributers
 
@@ -3475,20 +3584,23 @@ page for project specific requirements.
 
 **Release**  | **PR/Issue**                                        | **Contributer**
 -------------|-----------------------------------------------------|----------------------------------------------------
-0.3.0        | [#11](https://github.com/locp/cassandra/pull/11)    | [@spredzy](https://github.com/Spredzy)
-0.4.2        | [#34](https://github.com/locp/cassandra/pull/34)    | [@amosshapira](https://github.com/amosshapira)
-1.3.3        | [#87](https://github.com/locp/cassandra/pull/87)    | [@DylanGriffith](https://github.com/DylanGriffith)
-1.3.5        | [#93](https://github.com/locp/cassandra/issues/93)  | [@sampowers](https://github.com/sampowers)
-1.4.0        | [#100](https://github.com/locp/cassandra/pull/100)  | [@markasammut](https://github.com/markasammut)
-1.4.2        | [#110](https://github.com/locp/cassandra/pull/110)  | [@markasammut](https://github.com/markasammut)
+1.21.0       | [#226](https://github.com/locp/cassandra/pull/226)  | [@tibers](https://github.com/tibers)
+1.20.0       | [#217](https://github.com/locp/cassandra/issues/217)| [@samyray](https://github.com/samyray)
+1.19.0       | [#215](https://github.com/locp/cassandra/pull/215)  | [@tibers](https://github.com/tibers)
+1.18.0       | [#203](https://github.com/locp/cassandra/pull/203)  | [@Mike-Petersen](https://github.com/Mike-Petersen)
+1.15.0       | [#189](https://github.com/locp/cassandra/pull/189)  | [@tibers](https://github.com/tibers)
+1.14.0       | [#171](https://github.com/locp/cassandra/pull/171)  | [@jonen10](https://github.com/jonen10)
+1.13.0       | [#166](https://github.com/locp/cassandra/pull/166)  | [@Mike-Petersen](https://github.com/Mike-Petersen)
+1.13.0       | [#163](https://github.com/locp/cassandra/pull/163)  | [@VeriskPuppet](https://github.com/VeriskPuppet)
+1.12.2       | [#165](https://github.com/locp/cassandra/pull/165)  | [@palmertime](https://github.com/palmertime)
+1.12.0       | [#156](https://github.com/locp/cassandra/pull/156)  | [@stuartbfox](https://github.com/stuartbfox)
+1.12.0       | [#153](https://github.com/locp/cassandra/pull/153)  | [@Mike-Petersen](https://github.com/Mike-Petersen)
+1.10.0       | [#144](https://github.com/locp/cassandra/pull/144)  | [@Mike-Petersen](https://github.com/Mike-Petersen)
 1.9.2        | [#136](https://github.com/locp/cassandra/issues/136)| [@mantunovic](https://github.com/mantunovic)
 1.9.2        | [#136](https://github.com/locp/cassandra/issues/136)| [@al4](https://github.com/al4)
-1.10.0       | [#144](https://github.com/locp/cassandra/pull/144)  | [@Mike-Petersen](https://github.com/Mike-Petersen)
-1.12.0       | [#153](https://github.com/locp/cassandra/pull/153)  | [@Mike-Petersen](https://github.com/Mike-Petersen)
-1.12.0       | [#156](https://github.com/locp/cassandra/pull/156)  | [@stuartbfox](https://github.com/stuartbfox)
-1.12.2       | [#165](https://github.com/locp/cassandra/pull/165)  | [@palmertime](https://github.com/palmertime)
-1.13.0       | [#163](https://github.com/locp/cassandra/pull/163)  | [@VeriskPuppet](https://github.com/VeriskPuppet)
-1.13.0       | [#166](https://github.com/locp/cassandra/pull/166)  | [@Mike-Petersen](https://github.com/Mike-Petersen)
-1.14.0       | [#171](https://github.com/locp/cassandra/pull/171)  | [@jonen10](https://github.com/jonen10)
-1.15.0       | [#189](https://github.com/locp/cassandra/pull/189)  | [@tibers](https://github.com/tibers)
-1.18.0       | [#203](https://github.com/locp/cassandra/pull/203)  | [@Mike-Petersen](https://github.com/Mike-Petersen)
+1.4.2        | [#110](https://github.com/locp/cassandra/pull/110)  | [@markasammut](https://github.com/markasammut)
+1.4.0        | [#100](https://github.com/locp/cassandra/pull/100)  | [@markasammut](https://github.com/markasammut)
+1.3.5        | [#93](https://github.com/locp/cassandra/issues/93)  | [@sampowers](https://github.com/sampowers)
+1.3.3        | [#87](https://github.com/locp/cassandra/pull/87)    | [@DylanGriffith](https://github.com/DylanGriffith)
+0.4.2        | [#34](https://github.com/locp/cassandra/pull/34)    | [@amosshapira](https://github.com/amosshapira)
+0.3.0        | [#11](https://github.com/locp/cassandra/pull/11)    | [@spredzy](https://github.com/Spredzy)
