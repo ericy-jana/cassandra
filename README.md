@@ -22,6 +22,7 @@
     * [cassandra::datastax_agent](#class-cassandradatastax_agent)
     * [cassandra::datastax_repo](#class-cassandradatastax_repo)
     * [cassandra::env](#class-cassandraenv)
+    * [cassandra::file](#class-cassandrafile)
     * [cassandra::firewall_ports](#class-cassandrafirewall_ports)
     * [cassandra::java](#class-cassandrajava)
     * [cassandra::opscenter](#class-cassandraopscenter)
@@ -464,6 +465,7 @@ cassandra::opscenter::cluster_name { 'Cluster1':
 * [cassandra::datastax_agent](#class-cassandradatastax_agent)
 * [cassandra::datastax_repo](#class-cassandradatastax_repo)
 * [cassandra::env](#class-cassandraenv)
+* [cassandra::file](#class-cassandrafile)
 * [cassandra::firewall_ports](#class-cassandrafirewall_ports)
 * [cassandra::java](#class-cassandrajava)
 * [cassandra::opscenter](#class-cassandraopscenter)
@@ -2002,10 +2004,39 @@ Default value 'stable'
 
 A class for altering the environment file for Cassandra.
 
+This class is now deprecated and will be removed in a future release.  Please
+use the cassandra::file class instead.
+
 #### Attributes
 
 ##### `environment_file`
 The full path name of the environment file.  On the RedHat family this will
+default to `/etc/cassandra/default.conf/cassandra-env.sh` on Debian, the
+default is `/etc/cassandra/cassandra-env.sh`.
+
+##### `file_lines`
+If set, then the [create_resources](https://docs.puppet.com/puppet/latest/reference/function.html#createresources)
+will be used to create an array of
+[file_line](https://forge.puppet.com/puppetlabs/stdlib#file_line) resources
+where the path attribute is set to `$cassandra::env::environment_file`
+Default *undef*
+
+##### `service_refresh`
+If the Cassandra service is to be notified if the environment file is changed.
+Set to false if this is not wanted.
+Default value true.
+
+### Class: cassandra::file
+
+A class for altering file relative to the configuration directory.
+
+#### Attributes
+
+##### `file`
+The name of the file relative to the `config_path`.
+
+##### `config_path`
+The path to the configuration directory.  On the RedHat family this will
 default to `/etc/cassandra/default.conf/cassandra-env.sh` on Debian, the
 default is `/etc/cassandra/cassandra-env.sh`.
 
@@ -3188,6 +3219,20 @@ Any additional options to be passed to the **cqlsh** command.
 
 Default value ''
 
+##### `cqlsh_client_config`
+Set this to a file name (e.g. **/root/.puppetcqlshrc**) that will then be used
+to contain the credentials for connecting to Cassandra.  This is a more
+secure option than having the credentials appearing on the command line.  This
+option is only available in Cassandra 2.1.
+
+Default value *undef*
+
+##### `cqlsh_client_tmpl`
+The location of the template for configuring the credentials for the cqlsh
+client.  This is ignored unless `cqlsh_client_config` is set.
+
+Default value 'cassandra/cqlshrc.erb'
+
 ##### `cqlsh_command`
 The full path to the **cqlsh** command.
 
@@ -3200,7 +3245,7 @@ Default value `$::cassandra::listen_address`
 
 ##### `cqlsh_password`
 If credentials are require for connecting, specify the password here.
-See also `cqlsh_user`.
+See also `cqlsh_user`.  See also `cqlsh_client_config`.
 
 Default value *undef*
 
@@ -3212,7 +3257,7 @@ Default value `$::cassandra::native_transport_port`
 
 ##### `cqlsh_user`
 If credentials are require for connecting, specify the password here.
-See also `cqlsh_password`.
+See also `cqlsh_password`.  See also `cqlsh_client_config`.
 
 Default value 'cassandra'
 

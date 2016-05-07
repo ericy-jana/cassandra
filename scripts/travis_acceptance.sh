@@ -9,7 +9,11 @@
 export FOG_RC=./secrets/fog.rc
 export GITREPO='https://github.com/locp/cassandra.git'
 export REMOTE_USER="ec2-user"
+export NODE_TOTAL=$( ruby -e "require 'yaml'; t = YAML.load_file('.travis.yml'); print t['matrix']['include'].count" )
+export NODE_NUMBER=$( echo $TRAVIS_JOB_NUMBER | cut -d. -f2 )
 
+echo "NODE_NUMBER         : $NODE_NUMBER"
+echo "NODE_TOTAL          : $NODE_TOTAL"
 echo "TRAVIS_BUILD_ID     : $TRAVIS_BUILD_ID"
 echo "TRAVIS_BUILD_NUMBER : $TRAVIS_BUILD_ID"
 echo "TRAVIS_JOB_ID       : $TRAVIS_JOB_ID"
@@ -32,13 +36,6 @@ if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
   exit 0
 fi
 
-sub_job_number=$( echo $TRAVIS_JOB_NUMBER | cut -d. -f2 )
-
-if [ "$sub_job_number" != 1 ]; then
-  echo "Not the primary job, skipping acceptance tests."
-  exit 0
-fi
-
 if [ "$TRAVIS_TEST_RESULT" != 0 ]; then
   echo "Travis has already detected a failure, skipping acceptance tests."
   exit 0
@@ -48,7 +45,7 @@ fi
 # Provision the AWS node.
 #############################################################################
 tar xvf secrets.tar
-instance_info=`ruby .travis/provision.rb`
+instance_info=`ruby scripts/travis_provision.rb`
 instance_id=`echo $instance_info | cut -d: -f1`
 instance_public_ip_address=`echo $instance_info | cut -d: -f2`
 
@@ -62,11 +59,11 @@ echo "Instance Public IP Address: $instance_public_ip_address"
 # Upload Payload
 ssh_retries=10
 ssh_attempt=1
-sleep_period=10
+sleep_period=20
 
 while [ $ssh_attempt -lt $ssh_retries ]; do
   scp -i secrets/travis.pem -B -o "StrictHostKeyChecking no" \
-    .travis/payload.sh $REMOTE_USER@${instance_public_ip_address}:/var/tmp
+    scripts/travis_payload.sh $REMOTE_USER@${instance_public_ip_address}:/var/tmp
 
   if [ $? -ne 0 ]; then
     echo "Attempt $ssh_attempt of $ssh_retries failed."
@@ -81,8 +78,8 @@ done
 # Execute Payload
 ssh -i ./secrets/travis.pem -o "StrictHostKeyChecking no" \
   $REMOTE_USER@${instance_public_ip_address} /var/tmp/payload.sh \
-  $GITREPO $TRAVIS_BRANCH
+  $GITREPO $TRAVIS_BRANCH $NODE_NUMBER $NODE_TOTAL
 status=$?
 
-ruby .travis/destroy.rb $instance_id
+ruby scripts/travis_destroy.rb $instance_id
 exit $status
