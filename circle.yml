@@ -62,5 +62,5 @@ test:
         parallel: true
     - bundle exec rake spec SPEC_OPTS="--format RspecJunitFormatter -o $CIRCLE_TEST_REPORTS/rspec/puppet.xml":
         parallel: true
-    - ./scripts/circle.bash acceptance_tests:
+    - bundle exec rake beaker:
         parallel: true
