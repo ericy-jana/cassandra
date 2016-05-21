@@ -53,7 +53,7 @@ describe 'cassandra class' do
 
   describe '########### Cassandra System Logs.' do
     it '/var/log/cassandra/system.log' do
-      shell("test -f /var/log/cassandra/system.log && cat /var/log/cassandra/system.log")
+      shell('test -f /var/log/cassandra/system.log && cat /var/log/cassandra/system.log')
     end
   end
 end
