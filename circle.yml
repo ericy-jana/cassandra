@@ -40,7 +40,6 @@ deployment:
       - "./scripts/circle.bash merge release/minor"
 machine: 
   environment:
-    BEAKER_destroy: no
     PUPPET_GEM_VERSION: '~> 4.0'
     STRICT_VARIABLES: yes
   ruby:
@@ -65,3 +64,5 @@ test:
         parallel: true
     - bundle exec rake beaker:
         parallel: true
+        environment:
+          BEAKER_destroy: no
