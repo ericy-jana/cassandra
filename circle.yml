@@ -1,49 +1,27 @@
 --- 
 dependencies: 
-  bundler:
-    without: [development]
-  cache_directories:
-    - "~/.rvm/gems"
-  override:
-    - bundle install --without development:
+  bundler: 
+    without: 
+      - development
+  cache_directories: 
+    - ~/.rvm/gems
+  override: 
+    - 
+      ? "bundle install --without development"
+      : 
+        environment: 
+          PUPPET_GEM_VERSION: "~> 4.0"
+          STRICT_VARIABLES: true
         timeout: 240
-        environment:
-          PUPPET_GEM_VERSION: '~> 4.0'
-          STRICT_VARIABLES: yes
-  post:
-    - rvm cleanup all
-deployment: 
-  bugfix: 
-    branch: /^bugfix.*/
-    commands: 
-      - "./scripts/circle.bash merge release/patch"
-  feature231:
-    branch: feature/231/client_security
-    commands:
-      - "./scripts/circle.bash merge release/minor"
-  feature237:
-    branch: feature/237/file
-    commands:
-      - "./scripts/circle.bash merge release/minor"
-  improvement: 
-    branch: /^improvement.*/
-    commands: 
-      - "./scripts/circle.bash merge release/patch"
-  master: 
-    branch: master
-    commands: 
-      - "./scripts/circle.bash merge release/latest"
-      - "./scripts/circle.bash deploy"
-  patch_release: 
-    branch: release/patch
-    commands: 
-      - "./scripts/circle.bash merge release/minor"
+  post: 
+    - "rvm cleanup all"
 machine: 
-  environment:
-    PUPPET_GEM_VERSION: '~> 4.0'
-    STRICT_VARIABLES: yes
-  ruby:
-    version: 2.1.6
+  environment: 
+    BEAKER_destroy: off
+    PUPPET_GEM_VERSION: "~> 4.0"
+    STRICT_VARIABLES: true
+  ruby: 
+    version: "2.1.6"
   services: 
     - docker
 notify: 
@@ -52,17 +30,9 @@ notify:
       url: "https://webhooks.gitter.im/e/da8c065419a91983f0cf"
 test: 
   override: 
-    - bundle exec rake metadata_lint:
-        parallel: true
-    - bundle exec rake rubocop:
-        parallel: true
-    - bundle exec rake lint:
-        parallel: true
-    - bundle exec rake validate:
-        parallel: true
-    - bundle exec rake spec SPEC_OPTS="--format RspecJunitFormatter -o $CIRCLE_TEST_REPORTS/rspec/puppet.xml":
-        parallel: true
-    - bundle exec rake beaker:
-        parallel: true
-        environment:
-          BEAKER_destroy: no
+    - "bundle exec rake metadata_lint"
+    - "bundle exec rake rubocop"
+    - "bundle exec rake lint"
+    - "bundle exec rake validate"
+    - "bundle exec rake spec SPEC_OPTS=\"--format RspecJunitFormatter -o $CIRCLE_TEST_REPORTS/rspec/puppet.xml\""
+    - "bundle exec rake beaker"
