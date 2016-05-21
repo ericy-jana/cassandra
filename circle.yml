@@ -17,7 +17,7 @@ dependencies:
     - "rvm cleanup all"
 machine: 
   environment: 
-    BEAKER_destroy: off
+    BEAKER_destroy: no
     PUPPET_GEM_VERSION: "~> 4.0"
     STRICT_VARIABLES: true
   ruby: 
